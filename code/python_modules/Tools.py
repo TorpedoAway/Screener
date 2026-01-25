@@ -6,6 +6,7 @@ from shutil import copyfile
 import requests
 import json
 import yaml
+import csv
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -32,6 +33,13 @@ class Files:
         if os.path.isdir(dir):
             return True
         return False
+
+    def write_csv(self,filename,data):
+        with open(filename, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            # Write all rows at once
+            writer.writerows(data)
+
 
     def write_file(self,filename,list):
         f = open(filename,'w')
