@@ -10,6 +10,7 @@ from Tools import Files
 
 f = Files()
 tickers = f.read_file('/Projects/Picker/code/sp500.txt')
+# Uncomment below to use a short list of stock symbols for testing.
 #tickers = f.read_file('/Projects/Picker/code/test_tickers.txt')
 results = []
 
@@ -68,7 +69,7 @@ for ticker in tickers:
             trailingPE = info['trailingPE']
 
 
-        # If it meets your core criteria, add to results
+        # If it meets core buy criteria, add to results
         if is_trending_up and is_near_150:
             if 'buy' in recommendationKey.lower():
                 if targetMeanPrice > currentPrice:
@@ -94,7 +95,7 @@ for ticker in tickers:
     
     time.sleep(0.5)
 
-outfile = '/var/www/html/results.csv'
+outfile = '/var/www/html/scanner/results.csv'
 
 # Create DataFrame from results
 final_df = pd.DataFrame(results)
