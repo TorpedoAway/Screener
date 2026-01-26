@@ -1,0 +1,104 @@
+#!/Projects/Picker/bin/python3
+
+import pandas as pd
+import yfinance as yf
+import json
+import sys
+import time
+sys.path.append('/Projects/Picker/code/python_modules')
+from Tools import Files
+
+f = Files()
+tickers = f.read_file('/Projects/Picker/code/sp500.txt')
+#tickers = f.read_file('/Projects/Picker/code/test_tickers.txt')
+results = []
+
+for ticker in tickers:
+    try:
+        dat = yf.Ticker(ticker)
+        # Fetch 200d to ensure we have enough data for the 150d SMA
+        h = dat.history(period='200d')
+        
+        if len(h) < 150: continue
+
+        # Calculate your MAs
+        h['SMA_150'] = h['Close'].rolling(window=150).mean()
+        h['SMA_50'] = h['Close'].rolling(window=50).mean()
+        h['SMA_15'] = h['Close'].rolling(window=15).mean()
+
+        # Current Values
+        price = h['Close'].iloc[-1]
+        previous_price = h['Close'].iloc[-2]
+        m150 = h['SMA_150'].iloc[-1]
+        m50 = h['SMA_50'].iloc[-1]
+        m15 = h['SMA_15'].iloc[-1]
+
+        trend_alignment = m150 < m50 < m15
+        
+        # Trend Logic (Is the 150d MA higher than 1 month ago?)
+        m150_prev = h['SMA_150'].iloc[-21]
+        is_trending_up = m150 > m150_prev
+        
+        # Proximity Logic (Is price within 2% of the 150d MA?)
+        is_near_150 = abs(price - m150) / m150 < 0.02
+
+        info = dat.info
+        currentPrice = price
+        volume = info['volume']
+        averageVolume = info['averageVolume']
+        averageVolume10days = info['averageVolume10days']
+        fiftyTwoWeekHigh = info['fiftyTwoWeekHigh']
+        near52week = price >= fiftyTwoWeekHigh * 0.85
+        heavy_buying = (averageVolume10days > averageVolume * 1.2) and (price > previous_price)
+        #print(averageVolume10days,int(averageVolume * 1.2))
+        if 'recommendationKey' in info:
+            recommendationKey = info['recommendationKey']
+        else:
+            recommendationKey = 'N/A'
+        if 'targetMeanPrice' in info:
+            targetMeanPrice = info['targetMeanPrice']
+        else:
+            targetMeanPrice = currentPrice
+        marketCap = info['marketCap']
+        forwardPE = 'N/A'
+        if 'forwardPE' in info:
+            forwardPE = info['forwardPE']
+        trailingPE = 'N/A'
+        if 'trailingPE' in info:
+            trailingPE = info['trailingPE']
+
+
+        # If it meets your core criteria, add to results
+        if is_trending_up and is_near_150:
+            if 'buy' in recommendationKey.lower():
+                if targetMeanPrice > currentPrice:
+                    if volume > 1000000 and trend_alignment:
+                        if marketCap > 5000000000 and heavy_buying and near52week:            
+                            results.append({
+                              'Ticker': ticker,
+                              'Price': round(price, 2),
+                              'SMA_150': round(m150, 2),
+                              'Dist_from_150': round(((price - m150) / m150) * 100, 2),
+                              'SMA_50': round(m50, 2),
+                              'SMA_15': round(m15, 2),
+                              'Volume': h['Volume'].iloc[-1],
+                              'trailingPE': trailingPE,
+                              'forwardPE': forwardPE,
+                              'marketCap': marketCap,
+                              'Recommendation': recommendationKey,
+                            })
+                            print(f"Match found: {ticker}")
+
+    except Exception as e:
+        print(f"Could not process {ticker}: {e}")
+    
+    time.sleep(0.5)
+
+outfile = '/var/www/html/results.csv'
+
+# Create DataFrame from results
+final_df = pd.DataFrame(results)
+
+# Save to CSV
+final_df.to_csv(outfile, index=False)
+print(f"Scan complete. Results saved to {outfile}")
