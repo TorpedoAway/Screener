@@ -9,7 +9,7 @@ sys.path.append('/Projects/Picker/code/python_modules')
 from Tools import Files
 
 f = Files()
-tickers = f.read_file('/Projects/Picker/code/sp500.txt')
+tickers = f.read_file('/Projects/Picker/code/russell2000.txt')
 # Uncomment below to use a short list of stock symbols for testing.
 #tickers = f.read_file('/Projects/Picker/code/test_tickers.txt')
 results = []
@@ -17,16 +17,19 @@ results2 = []
 
 for ticker in tickers:
     try:
+        ticker = ticker.replace('.','')
         dat = yf.Ticker(ticker)
+        # Fetch 200d to ensure we have enough data for the 150d SMA
+
         info = dat.info
         marketCap = info['marketCap']
-        if marketCap < 5000000000:
+        if marketCap < 1000000000:
             time.sleep(0.5)
             continue
+
         time.sleep(0.5)
-        # Fetch 200d to ensure we have enough data for the 150d SMA
         h = dat.history(period='200d')
-        
+
         if len(h) < 150: continue
 
         # Calculate your MAs
@@ -100,7 +103,7 @@ for ticker in tickers:
             #if 'buy' in recommendationKey.lower():
                 if targetMeanPrice > currentPrice:
                     if volume > 1000000 and trend_alignment:
-                        if heavy_buying and near52week:            
+                        if marketCap > 5000000000 and heavy_buying and near52week:            
                             results.append({
                               'Ticker': ticker,
                               'Company': name,
@@ -124,8 +127,8 @@ for ticker in tickers:
     
     time.sleep(0.5)
 
-outfile = '/var/www/html/scanner/results.csv'
-outfile2 = '/var/www/html/scanner/strong_buy_recommendations.csv'
+outfile = '/var/www/html/scanner/Russell_2000.csv'
+outfile2 = '/var/www/html/scanner/strong_buy_r2000.csv'
 
 # Create DataFrame from results
 final_df = pd.DataFrame(results)
