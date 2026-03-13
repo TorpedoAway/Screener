@@ -89,10 +89,6 @@ for ticker in tickers:
         # 4. close the connection
         connection.close()        
 
-        #h['SMA_150'] = h['close'].rolling(window=150).mean()
-        #h['SMA_50'] = h['close'].rolling(window=50).mean()
-        #h['SMA_21'] = h['close'].rolling(window=21).mean()
-        #h['SMA_15'] = h['close'].rolling(window=15).mean()
 
 
         info_file = f"{DataDir}/{ticker}_info.json"
@@ -118,20 +114,11 @@ for ticker in tickers:
             marketCapBillions = str(marketCapBillions) + " Billion"
         
         if marketCap < config['minMarketCap']:
-            #time.sleep(config['sleepTime'])
             print(f"{ticker} market cap {marketCapBillions} is too small. Skipping")
             continue
         if volume < config['minVol']:
-            #time.sleep(config['sleepTime'])
             print(f"{ticker} Volume {volume} is too low. Skipping")
             continue
-
-        #time.sleep(config['sleepTime'])
-        # Fetch 200d to ensure we have enough data for the 150d SMA
-        #cols = h.columns
-        #print (cols)
-        #labels = h.index
-        #print (labels)
 
 
         if len(h) < config['minDays']: continue
@@ -149,9 +136,6 @@ for ticker in tickers:
         m21 = h['SMA_21'].iloc[-1]
         m15 = h['SMA_15'].iloc[-1]
         vol = info['volume']
-        #print(f"Ticker: {ticker} Price: {price} Hist minus 1 {round(h['close'].iloc[-1],2)}")
-        #print(f"Processed {ticker}")
-        #continue
 
         # Calculate 21 Day EMA
         h['EMA_21'] = h['close'].ewm(span=21, adjust=False).mean()
@@ -184,14 +168,10 @@ for ticker in tickers:
             signal_type = "NO CROSS"
 
         crossed21ema =  (h['close'].iloc[-2]  < ema_yesterday) and (h['close'].iloc[-1] > ema_today)
-        #if crossed21ema:
-        #    print(f"{ticker}: Crossed 21d EMA")
         
         trending_up =   h['close'].iloc[-1] >  h['close'].iloc[-2] >  h['close'].iloc[-3]
         trending_up_sharply = h['close'].iloc[-1] >  h['close'].iloc[-2] * config['sharpUptrend'] >  h['close'].iloc[-3] * config['sharpUptrend']
 
-        #if trending_up_sharply:
-        #    print("Trending up",ticker)
        
         trend_alignment = m150 < m50 and m150 < m15
         perfect_trend_alignment = m150 < m50  < h['EMA_21'].iloc[-1]
@@ -209,8 +189,6 @@ for ticker in tickers:
         else:
             is_near_150 = abs(price - m150) / m150 < config['near150Over']
 
-        #print(f"Processed {ticker}")
-        #continue
             
 
         currentPrice = price
@@ -240,49 +218,9 @@ for ticker in tickers:
 
         short_term_confirmation = slope and crossed21ema and trending_up_sharply and 'buy' in recommendationKey.lower() and perfect_trend_alignment
 
-
-#        if breakout and slope:
-#            print(f"cwShort term trade buy match, {ticker}, {name}")
-#            results4.append({
-#               'Ticker': ticker,
-#               'Company': name,
-#               'Price': round(price, 2),
-#               'Target Price': round(targetMeanPrice, 2),
-#               'SMA_150': round(m150, 2),
-#               'Dist_from_150': round(((price - m150) / m150) * 100, 2),
-#               'SMA_50': round(m50, 2),
-#               'SMA_15': round(m15, 2),
-#               'Volume': h['Volume'].iloc[-1],
-#               'Average Volume': averageVolume,
-#               'trailingPE': trailingPE,
-#               'forwardPE': forwardPE,
-#               'marketCap (Billions)': round(int(marketCap)/1000/1000/1000),
-#               'Signal' : signal_type,
-#               'Recommendation': recommendationKey,
-#             })
-#
-#
-#        if short_term_confirmation:
-#            print(f"cwShort term trade buy match, {ticker}, {name}")
-#            results3.append({
-#               'Ticker': ticker,
-#               'Company': name,
-#               'Price': round(price, 2),
-#               'Target Price': round(targetMeanPrice, 2),
-#               'SMA_150': round(m150, 2),
-#               'Dist_from_150': round(((price - m150) / m150) * 100, 2),
-#               'SMA_50': round(m50, 2),
-#               'SMA_15': round(m15, 2),
-#               'Volume': h['Volume'].iloc[-1],
-#               'Average Volume': averageVolume,
-#               'trailingPE': trailingPE,
-#               'forwardPE': forwardPE,
-#               'marketCap (Billions)': round(int(marketCap)/1000/1000/1000),
-#               'Signal' : signal_type,
-#               'Recommendation': recommendationKey,
-#             })
         
-        if "strong" in recommendationKey.lower() and heavy_buying and slope and trending_up:
+        #if "strong" in recommendationKey.lower() and heavy_buying and slope and trending_up:
+        if "strong" in recommendationKey.lower() and heavy_buying:
             print(f"Strong buy match, {ticker}, {name}")
             results2.append({
                'Ticker': ticker,
@@ -304,8 +242,6 @@ for ticker in tickers:
                'Recommendation': recommendationKey,
              })
 
-        # If it meets core buy criteria, add to results
-        #buy_candidate = targetMeanPrice > currentPrice and trend_alignment and heavy_buying and near52week and is_near_150 and slope and trending_up_sharply
 
         #buy_candidate = heavy_buying and is_near_150 and slope and trending_up_sharply
         buy_candidate = heavy_buying and is_near_150 
@@ -385,25 +321,16 @@ for ticker in tickers:
     except Exception as e:
         print(f"Could not process {ticker}: {e}")
     
-    #time.sleep(0.5)
 
-outfile = f"/var/www/html/scanner/{conf}_SMA150Bounce_results.csv"
+outfile = f"/var/www/html/scanner/{conf}_results.csv"
 outfile2 = f"/var/www/html/scanner/{conf}_strong_buy_recommendations.csv"
-#outfile3 = f"/var/www/html/scanner/{conf}_short_term_trade.csv"
-#outfile4 = f"/var/www/html/scanner/{conf}_breakout.csv"
 
 # Create DataFrame from results
 final_df = pd.DataFrame(results)
 final_df2 = pd.DataFrame(results2)
-#final_df3 = pd.DataFrame(results3)
-#final_df4 = pd.DataFrame(results4)
 
 # Save to CSV
 final_df.to_csv(outfile, index=False)
 print(f"Scan complete. Results saved to {outfile}")
 final_df2.to_csv(outfile2, index=False)
 print(f"Strong Buy Recommendations saved to {outfile2}")
-#final_df3.to_csv(outfile3, index=False)
-#print(f"Short Term Trade Buy Recommendations saved to {outfile3}")
-#final_df4.to_csv(outfile4, index=False)
-#print(f"Short Term Trade Buy Recommendations saved to {outfile4}")

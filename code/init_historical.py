@@ -17,19 +17,6 @@ from Tools import Files
 
 DB_PATH = Path("/Projects/Picker/code/historical.db")
 
-SECTORS = {
-    "XLC":  "Communication Services",
-    "XLY":  "Consumer Discretionary",
-    "XLP":  "Consumer Staples",
-    "XLE":  "Energy",
-    "XLF":  "Financials",
-    "XLV":  "Health Care",
-    "XLI":  "Industrials",
-    "XLB":  "Materials",
-    "XLRE": "Real Estate",
-    "XLK":  "Technology",
-    "XLU":  "Utilities",
-}
 
 
 
@@ -124,10 +111,6 @@ else:
 
 
 tickers = f.read_file( config['datfile'] ) 
-
-if conf == 'sp500':
-    for ticker in SECTORS.keys():
-        tickers.append(ticker)
 
 for ticker in tickers:
     try:
