@@ -2,9 +2,15 @@
 #
 log='/var/www/html/scanner/Data_Collection.log'
 
+#export ScanType='SPECIAL'
+#echo "`date`: Begin Special Data Collection..." > $log
+#/Projects/Picker/Screener/code/init_historical.py
+#echo "`date`: End Special Scan..." >> $log
+#exit
+
 
 export ScanType='ETF'
-echo "`date`: Begin ETFs Data Collection..." > $log
+echo "`date`: Begin ETFs Data Collection..." >> $log
 /Projects/Picker/Screener/code/init_historical.py
 echo "`date`: End ETFs Scan..." >> $log
 

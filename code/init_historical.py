@@ -104,6 +104,22 @@ elif conf == 'ETF':
         'near52Week' : 0.7,
         'datfile' : '/Projects/Picker/code/ETF.dat'
     }
+
+elif conf == 'SPECIAL':
+    config = {
+        'minMarketCap' : 300000000,
+        'minVol' : 300000,
+        'sleepTime' : 0.5,
+        'hist' : '600d',
+        'minDays' : 150,
+        'slope150d' : 1.02,
+        'sharpUptrend' : 1.015,
+        'heavyVolMultiplier' : 1.3,
+        'near150Under' : 0.02,
+        'near150Over' : 0.06,
+        'near52Week' : 0.7,
+        'datfile' : '/Projects/Picker/code/tickers.dat'
+    }
     
 else:
     print("No valid ScanType set...")

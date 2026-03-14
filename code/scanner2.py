@@ -15,14 +15,19 @@ from Tools import Files
 # Configuration
 # ---------------------------------------------------------------------------
 
+def safe_val(val, fmt='{:.2f}'):
+    try:
+        if val is None:
+            return 'N/A'
+        return fmt.format(float(val))
+    except (TypeError, ValueError):
+        return 'N/A'
+
 
 f = Files()
 # Uncomment below to use a short list of stock symbols for testing.
 #tickers = f.read_file('/Projects/Picker/code/test_tickers.txt')
 results = []
-results2 = []
-results3 = []
-results4 = []
 
 conf = os.getenv('ScanType')
 
@@ -39,7 +44,7 @@ if conf == 'sp500':
         'near150Under' : 0.02,
         'near150Over' : 0.02,
         'near52Week' : 0.1,
-        'datfile' : '/Projects/Picker/code/sp500.dat'
+        'datfile' : '/Projects/Picker/code/sp500_and_etfs.dat'
     }   
 elif conf == 'r2k':
     config = {
@@ -55,6 +60,21 @@ elif conf == 'r2k':
         'near150Over' : 0.06,
         'near52Week' : 0.7,
         'datfile' : '/Projects/Picker/code/r2k.dat'
+    }
+elif conf == 'ETF':
+    config = {
+        'minMarketCap' : 300000000,
+        'minVol' : 300000,
+        'sleepTime' : 0.5,
+        'hist' : '200d',
+        'minDays' : 150,
+        'slope150d' : 1.02,
+        'sharpUptrend' : 1.015,
+        'heavyVolMultiplier' : 1.3,
+        'near150Under' : 0.02,
+        'near150Over' : 0.06,
+        'near52Week' : 0.7,
+        'datfile' : '/Projects/Picker/code/ETF.dat'
     }
 elif conf == 'test':
     config = {
@@ -101,28 +121,16 @@ for ticker in tickers:
         except json.JSONDecodeError:
             print("Error: Failed to decode JSON from the file (malformed JSON).")
 
+        if "marketCap" in info:
+            marketCap = info['marketCap']
+        else:
+            marketCap = 0
+            print(f"marketCap = {marketCap}")
         ##################################################################
-        marketCap = info['marketCap']
-        volume = info['volume']
-        marketCapBillions = marketCap/1000/1000/1000
-        if marketCapBillions > 1000:
-            marketCapBillions = marketCapBillions/1000
-            marketCapBillions = round(marketCapBillions,2)
-            marketCapBillions = str(marketCapBillions) + " Trillion"
-        else: 
-            marketCapBillions = round(marketCapBillions,2)
-            marketCapBillions = str(marketCapBillions) + " Billion"
-        
-        if marketCap < config['minMarketCap']:
-            print(f"{ticker} market cap {marketCapBillions} is too small. Skipping")
+
+        if len(h) < config['minDays']: 
+            print(f"Skipping {ticker}. Only {len(h)} records...")
             continue
-        if volume < config['minVol']:
-            print(f"{ticker} Volume {volume} is too low. Skipping")
-            continue
-
-
-        if len(h) < config['minDays']: continue
-
         # Calculate Moving Averages
         h['SMA_150'] = h['close'].rolling(window=150).mean()
         h['SMA_50'] = h['close'].rolling(window=50).mean()
@@ -130,7 +138,7 @@ for ticker in tickers:
         h['SMA_15'] = h['close'].rolling(window=15).mean()
 
         # Current Values
-        price = info['currentPrice']
+        price = h['close'].iloc[-1]
         m150 = h['SMA_150'].iloc[-1]
         m50 = h['SMA_50'].iloc[-1]
         m21 = h['SMA_21'].iloc[-1]
@@ -161,7 +169,7 @@ for ticker in tickers:
             print(f"{ticker}: BREAKOUT")
         if is_bullish_crossover:
             signal_type = "BULLISH CROSS"
-            print(f"{ticker}: Bullish Cross")
+            #print(f"{ticker}: Bullish Cross")
         elif is_bearish_crossover:
             signal_type = "BEARISH CROSS"
         else:
@@ -171,6 +179,7 @@ for ticker in tickers:
         
         trending_up =   h['close'].iloc[-1] >  h['close'].iloc[-2] >  h['close'].iloc[-3]
         trending_up_sharply = h['close'].iloc[-1] >  h['close'].iloc[-2] * config['sharpUptrend'] >  h['close'].iloc[-3] * config['sharpUptrend']
+
 
        
         trend_alignment = m150 < m50 and m150 < m15
@@ -189,7 +198,7 @@ for ticker in tickers:
         else:
             is_near_150 = abs(price - m150) / m150 < config['near150Over']
 
-            
+        is_below_150 = price < m150            
 
         currentPrice = price
         averageVolume = info['averageVolume']
@@ -218,14 +227,24 @@ for ticker in tickers:
 
         short_term_confirmation = slope and crossed21ema and trending_up_sharply and 'buy' in recommendationKey.lower() and perfect_trend_alignment
 
-        
+        is_near_or_below_150 = is_below_150 or is_near_150
+        pe = 0
+        if forwardPE == 'N/A':
+            pe = 10
+        else:
+            pe = forwardPE
+        valuecheck = pe < 25 
+        p2s = safe_val(info.get('priceToSalesTrailing12Months'))
+        price2sales = False
+        if p2s != 'N/A':
+            price2sales = float(p2s) < 10.0
         #if "strong" in recommendationKey.lower() and heavy_buying and slope and trending_up:
-        if "strong" in recommendationKey.lower() and heavy_buying:
+        if "strong" in recommendationKey.lower() and is_near_or_below_150 and valuecheck and price2sales:
             print(f"Strong buy match, {ticker}, {name}")
-            results2.append({
+            results.append({
                'Ticker': ticker,
                'Company': name,
-               'Reason Included?' : "Strong buy and uptrend",
+               'Reason Included?' : "Strong buy",
                'Price': round(price, 2),
                'Target Price': round(targetMeanPrice, 2),
                'SMA_150': round(m150, 2),
@@ -322,15 +341,11 @@ for ticker in tickers:
         print(f"Could not process {ticker}: {e}")
     
 
-outfile = f"/var/www/html/scanner/{conf}_results.csv"
-outfile2 = f"/var/www/html/scanner/{conf}_strong_buy_recommendations.csv"
+outfile = f"/var/www/html/scanner/sp500_results.csv"
 
 # Create DataFrame from results
 final_df = pd.DataFrame(results)
-final_df2 = pd.DataFrame(results2)
 
 # Save to CSV
 final_df.to_csv(outfile, index=False)
 print(f"Scan complete. Results saved to {outfile}")
-final_df2.to_csv(outfile2, index=False)
-print(f"Strong Buy Recommendations saved to {outfile2}")
