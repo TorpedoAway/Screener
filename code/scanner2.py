@@ -15,6 +15,9 @@ from Tools import Files
 # Configuration
 # ---------------------------------------------------------------------------
 
+PELIMIT = 25
+PSLIMIT = 4.0
+
 def safe_val(val, fmt='{:.2f}'):
     try:
         if val is None:
@@ -233,20 +236,22 @@ for ticker in tickers:
             pe = 10
         else:
             pe = forwardPE
-        valuecheck = pe < 25 
         p2s = safe_val(info.get('priceToSalesTrailing12Months'))
-        price2sales = False
+        valuecheck = False
         if p2s != 'N/A':
-            price2sales = float(p2s) < 10.0
+            valuecheck = float(p2s) < PSLIMIT and pe < PELIMIT
         #if "strong" in recommendationKey.lower() and heavy_buying and slope and trending_up:
-        if "strong" in recommendationKey.lower() and is_near_or_below_150 and valuecheck and price2sales:
+        if "strong" in recommendationKey.lower() and is_near_or_below_150 and valuecheck:
             print(f"Strong buy match, {ticker}, {name}")
             results.append({
                'Ticker': ticker,
                'Company': name,
-               'Reason Included?' : "Strong buy",
+               'Reason Included?' : "Strong buy and Value",
                'Price': round(price, 2),
                'Target Price': round(targetMeanPrice, 2),
+               'forwardPE': forwardPE,
+               'P/S': p2s,
+               'Recommendation': recommendationKey,
                'SMA_150': round(m150, 2),
                'Dist_from_150': round(((price - m150) / m150) * 100, 2),
                'SMA_50': round(m50, 2),
@@ -254,11 +259,9 @@ for ticker in tickers:
                'Volume': vol,
                'Average Volume': averageVolume,
                'trailingPE': trailingPE,
-               'forwardPE': forwardPE,
                'marketCap (Billions)': round(int(marketCap)/1000/1000/1000),
                'Signal' : signal_type,
                'Possible Breakout?' : breakout,
-               'Recommendation': recommendationKey,
              })
 
 
